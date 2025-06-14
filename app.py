@@ -20,7 +20,7 @@ def create_items():
     
     return jsonify(data), 201
 
-@app.route('/items/<int::item_id>', methods=['PUT'])
+@app.route('/items/<int:item_id>', methods=['PUT'])
 def update_item(item_id):
     data = request.get_json()
     if 0 <= item_id < len(items):
