@@ -1,4 +1,6 @@
 flask
 flask-httpauth
 flasgger
+requests
+beautifulsoup4
 
