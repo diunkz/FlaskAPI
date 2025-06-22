@@ -3,4 +3,4 @@ flask-httpauth
 flasgger
 requests
 beautifulsoup4
-
+flask_sqlalchemy
