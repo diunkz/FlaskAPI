@@ -4,3 +4,4 @@ flasgger
 requests
 beautifulsoup4
 flask_sqlalchemy
+Flask-JWT-Extended
