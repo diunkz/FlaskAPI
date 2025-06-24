@@ -105,6 +105,46 @@ def protected():
 
     return jsonify({"msg": f"Usuário com ID {current_user_id} acessou a rota protegida"}), 200                                   
 
+@app.route('/recipes', methods=['POST'])
+@jwt_required()
+def create_recipe():
+    """"
+    Cria uma nova receita.
+    ---
+    security:
+        - BearerAuth: []
+    parameters:
+        - in: body
+        name: body
+        schema:
+            type: object
+            required: true
+            properties:
+                title:
+                    type: string
+                ingredients
+                    type: string
+                time_minutes:
+                    type: integer
+    responses:
+        201:
+            description: Receita criada com sucesso.
+        401:
+            description: Token não fornecido ou inválido.
+    """
+
+    data = request.get_json()
+    new_recipe = Recipe(
+        title = data['title'],
+        ingredients=data['ingredients'],
+        time_minutes = data['time_minutes']
+    )
+
+    db.session.add(new_recipe)
+    db.session.commit()
+
+    return jsonify({"msg": "Recipe createdg"}), 201
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
