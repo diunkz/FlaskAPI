@@ -122,7 +122,7 @@ def create_recipe():
             properties:
                 title:
                     type: string
-                ingredients
+                ingredients:
                     type: string
                 time_minutes:
                     type: integer
@@ -143,9 +143,109 @@ def create_recipe():
     db.session.add(new_recipe)
     db.session.commit()
 
-    return jsonify({"msg": "Recipe createdg"}), 201
+    return jsonify({"msg": "Recipe created"}), 201
+
+@app.route('/recipes', methods=['GET'])
+def get_recipes():
+    """"
+    Lista de receitas com filtros opcionais.
+    ---
+    parameters:
+        - in: query
+        name: ingredients
+        type: string
+        required: false
+        description: Filtra por ingrediente
+        - in: query
+        name: max_time
+        type: integer
+        required: false
+        description: Tempo máximo de preparo (minutos)
+    responses:
+        200:
+            description: Lista de receitas filtradas
+            schema:
+                type: array
+                items:
+                    type: object
+                    properties:
+                        id:
+                            type: integer
+                        title:
+                            type: integer
+                        time_minutes:
+                            type: integer
+    """
+
+    ingredients  = request.args.get('ingredients')
+    max_time = request.args.get('max_time', type=int)
+
+    query = Recipe.query
+    
+    if ingredients:
+        query = query.filter(Recipe.ingredients.ilike(f'%{ingredients}%'))
+    if max_time is not None:
+        query = query.filter(Recipe.time_minutes <= max_time)
+    
+    recipes = query.all()
+    return jsonify([
+        {
+            "id": r.id,
+            "title": r.title,
+            "ingredients": r.ingredients,
+            "time_minutes": r.time_minutes
+        }
+        for r in recipes
+    ]), 200
+
+@app.route('/recipes/<int:recipe_id>', methods=['PUT'])
+@jwt_required()
+def update_recipe(recipe_id):
+    """"
+    Atualiza uma receita existente.
+    ---
+    security:
+        - BearerAuth: []
+    parameters:
+        - in: path
+        name: recipe_id
+        required: true
+        type: integer
+        - in: body
+        name: body
+        schema:
+            type: object
+            properties:
+                title:
+                    type: string
+                ingredients:
+                    type: string
+                time_minutes:
+                    type: integer
+    responses:
+        200:
+            description: Receita atualizada
+        404:
+            description: Receita não encontrada
+        401:
+            description: Token não fornecido ou inválido
+    """
+
+    data = request.get_json()
+    recipe = Recipe.query.get_or_404(recipe_id)
+
+    if 'title' in data:
+        recipe.title = data['title']
+    if 'ingredients' in data:
+        recipe.ingredients = data['ingredients']
+    if 'time_minutes' in data:
+        recipe.time_minutes = data['time_minutes']
+    
+    db.session.commit()
+    return jsonify({"msg": "Recipe updated"}), 200
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         print("Banco de Dados criado!")
+    app.run(debug=True)
