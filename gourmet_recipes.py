@@ -4,12 +4,29 @@ from flask_jwt_extended import (
     JWTManager, create_access_token,
     jwt_required, get_jwt_identity
 )
+from flasgger import Swagger
 
 app = Flask(__name__)
 app.config.from_object('config')
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app) 
+swagger = Swagger(app, template={
+    "swagger": "2.0",
+    "info": {
+        "title": "Gourmet Recipes API",
+        "description": "API para cadastro e listagem de receitas com autenticação JWT.",
+        "version": "1.0"
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT com prefixo Bearer. Exemplo: 'Bearer seu_token_aqui'"
+        }
+    }
+})
 
 print(app.config['SECRET_KEY'])
 print(app.config['SQLALCHEMY_DATABASE_URI'])
@@ -29,27 +46,26 @@ class Recipe(db.Model):
 
 @app.route('/register', methods=['POST'])
 def register_user():
-    """"
+    """
     Registra um novo usuário.
     ---
     parameters:
-    -   in: body
+      - in: body
         name: body
         required: true
         schema:
-            type: object
-            properties:
-                username:
-                    type: string
-                password:
-                    type: string
+          type: object
+          properties:
+            username:
+              type: string
+            password:
+              type: string
     responses:
-        201:
-            description: Usuário criado com sucesso
-        400:
-            description: Usuário já existe
+      201:
+        description: Usuário criado com sucesso
+      400:
+        description: Usuário já existe
     """
-
     data = request.get_json()
 
     if User.query.filter_by(username=data['username']).first():
@@ -64,35 +80,32 @@ def register_user():
 
 @app.route('/login', methods=['POST'])
 def login():
-    """"
+    """
     Faz o login do usuário e retorna um JWT.
     ---
     parameters:
-    -   in: body
+      - in: body
         name: body
         required: true
         schema:
-            type: object
-            properties:
-                username:
-                    type: string
-                password:
-                    type: string
+          type: object
+          properties:
+            username:
+              type: string
+            password:
+              type: string
     responses:
-        200:
-            description: Login bem sucedido, retorna JWT
-        401:
-            description: Credenciais Inválidas
+      200:
+        description: Login bem sucedido, retorna JWT
+      401:
+        description: Credenciais Inválidas
     """
-
     data = request.get_json()
     user = User.query.filter_by(username=data['username']).first()
 
     if user and user.password == data['password']:
-        # Converte o ID para string
         token = create_access_token(identity=str(user.id))
-
-        return jsonify({"acess_token": token}), 200
+        return jsonify({"access_token": token}), 200
 
     return jsonify({"error": "Invalid credentials"}), 401
 
@@ -100,46 +113,42 @@ def login():
 @app.route('/protected', methods=['GET'])
 @jwt_required()
 def protected():
-    current_user_id = get_jwt_identity() # Retorna o 'identity' usado na 
-                                         # criação do token
-
+    current_user_id = get_jwt_identity()
     return jsonify({"msg": f"Usuário com ID {current_user_id} acessou a rota protegida"}), 200                                   
 
 @app.route('/recipes', methods=['POST'])
 @jwt_required()
 def create_recipe():
-    """"
+    """
     Cria uma nova receita.
     ---
     security:
-        - BearerAuth: []
+      - BearerAuth: []
     parameters:
-        - in: body
+      - in: body
         name: body
+        required: true
         schema:
-            type: object
-            required: true
-            properties:
-                title:
-                    type: string
-                ingredients:
-                    type: string
-                time_minutes:
-                    type: integer
+          type: object
+          properties:
+            title:
+              type: string
+            ingredients:
+              type: string
+            time_minutes:
+              type: integer
     responses:
-        201:
-            description: Receita criada com sucesso.
-        401:
-            description: Token não fornecido ou inválido.
+      201:
+        description: Receita criada com sucesso.
+      401:
+        description: Token não fornecido ou inválido.
     """
-
     data = request.get_json()
     new_recipe = Recipe(
-        title = data['title'],
+        title=data['title'],
         ingredients=data['ingredients'],
-        time_minutes = data['time_minutes']
+        time_minutes=data['time_minutes']
     )
-
     db.session.add(new_recipe)
     db.session.commit()
 
@@ -147,41 +156,39 @@ def create_recipe():
 
 @app.route('/recipes', methods=['GET'])
 def get_recipes():
-    """"
+    """
     Lista de receitas com filtros opcionais.
     ---
     parameters:
-        - in: query
+      - in: query
         name: ingredients
         type: string
         required: false
         description: Filtra por ingrediente
-        - in: query
+      - in: query
         name: max_time
         type: integer
         required: false
         description: Tempo máximo de preparo (minutos)
     responses:
-        200:
-            description: Lista de receitas filtradas
-            schema:
-                type: array
-                items:
-                    type: object
-                    properties:
-                        id:
-                            type: integer
-                        title:
-                            type: integer
-                        time_minutes:
-                            type: integer
+      200:
+        description: Lista de receitas filtradas
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+              time_minutes:
+                type: integer
     """
-
     ingredients  = request.args.get('ingredients')
     max_time = request.args.get('max_time', type=int)
 
     query = Recipe.query
-    
     if ingredients:
         query = query.filter(Recipe.ingredients.ilike(f'%{ingredients}%'))
     if max_time is not None:
@@ -201,36 +208,36 @@ def get_recipes():
 @app.route('/recipes/<int:recipe_id>', methods=['PUT'])
 @jwt_required()
 def update_recipe(recipe_id):
-    """"
+    """
     Atualiza uma receita existente.
     ---
     security:
-        - BearerAuth: []
+      - BearerAuth: []
     parameters:
-        - in: path
+      - in: path
         name: recipe_id
         required: true
         type: integer
-        - in: body
+      - in: body
         name: body
         schema:
-            type: object
-            properties:
-                title:
-                    type: string
-                ingredients:
-                    type: string
-                time_minutes:
-                    type: integer
+          type: object
+          properties:
+            title:
+              type: string
+            ingredients:
+              type: string
+            time_minutes:
+              type: integer
     responses:
-        200:
-            description: Receita atualizada
-        404:
-            description: Receita não encontrada
-        401:
-            description: Token não fornecido ou inválido
+      200:
+        description: Receita atualizada
+      404:
+        description: Receita não encontrada
+      401:
+        description: Token não fornecido ou inválido
     """
-
+    
     data = request.get_json()
     recipe = Recipe.query.get_or_404(recipe_id)
 
